@@ -1,4 +1,4 @@
-import type { Food } from '../types'
+import type { Food, GroceryProduct } from '../types'
 
 /** Small fixture table for unit tests (values rounded, for tests only). */
 export const TEST_FOODS: Food[] = [
@@ -21,3 +21,35 @@ export const TEST_FOODS: Food[] = [
 ]
 
 export const TEST_FOOD_MAP = new Map(TEST_FOODS.map((f) => [f.id, f]))
+
+
+const p = (id: string, foodId: string, store: GroceryProduct['store'], packGrams: number, priceAUD: number | null): GroceryProduct => ({
+  id,
+  foodId,
+  store,
+  productName: id,
+  packSize: `${packGrams} g`,
+  packGrams,
+  priceAUD,
+  unitPriceText: '',
+  url: 'https://example.test/' + id,
+  checkedOn: '2026-10-18',
+})
+
+/** Fixture catalogue for unit tests (prices are made up). */
+export const TEST_CATALOG: GroceryProduct[] = [
+  p('chicken-1kg', 'chicken_breast', 'Coles', 1000, 13),
+  p('chicken-500g-premium', 'chicken_breast', 'Woolworths', 500, 11),
+  p('eggs-12', 'eggs', 'ALDI', 700, 6),
+  p('tuna-95g', 'tuna_can', 'Woolworths', 95, 1.5),
+  p('lentils-400g', 'lentils_can', 'ALDI', 250, 1),
+  p('tofu-450g', 'tofu', 'Coles', 450, 3.5),
+  p('yogurt-1kg', 'greek_yogurt', 'Woolworths', 1000, 6),
+  p('broccoli-each', 'broccoli', 'Coles', 350, 2.5),
+  p('frozen-veg-1kg', 'frozen_veg', 'ALDI', 1000, 3),
+  p('bananas-1kg', 'banana', 'Woolworths', 1000, 4),
+  p('rice-1kg', 'rice', 'ALDI', 1000, 2),
+  p('oats-1kg', 'oats', 'Coles', 1000, 2.5),
+  p('pb-375g', 'peanut_butter', 'ALDI', 375, 3),
+  p('mystery-unpriced', 'chicken_breast', 'Coles', 1000, null),
+]
