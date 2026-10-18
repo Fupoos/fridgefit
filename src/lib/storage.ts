@@ -1,12 +1,13 @@
 import type { FridgeScan, Profile, WeeklyLog } from '../types'
-import { DEFAULT_MODEL } from './gemini'
+import { DEFAULT_MODEL } from './claude'
 
 /**
  * Everything FridgeFit knows lives in this browser's storage. Nothing is
  * uploaded; the "data donation" switch is a prototype of the opt-in flow.
  */
 export const STATE_KEY = 'fridgefit:v1:state'
-export const API_KEY_KEY = 'fridgefit:v1:gemini-key'
+// Renamed from 'gemini-key' so an old Gemini key is never sent to Anthropic (clearAll still removes it).
+export const API_KEY_KEY = 'fridgefit:v1:claude-key'
 const VERSION = 1
 
 export interface AppState {
@@ -17,11 +18,12 @@ export interface AppState {
   /** A scan waiting for the user to check it on the Confirm screen. */
   draft: FridgeScan | null
   logs: WeeklyLog[]
-  settings: { model: string }
+  /** lang null = follow the browser language. */
+  settings: { model: string; lang: 'en' | 'zh' | null }
 }
 
 export function defaultState(): AppState {
-  return { version: VERSION, consent: null, profile: null, scans: [], draft: null, logs: [], settings: { model: DEFAULT_MODEL } }
+  return { version: VERSION, consent: null, profile: null, scans: [], draft: null, logs: [], settings: { model: DEFAULT_MODEL, lang: null } }
 }
 
 function safeLocal(): Storage | null {
@@ -46,7 +48,11 @@ export function loadState(local: Storage | null = safeLocal()): AppState {
     if (!raw) return defaultState()
     const parsed = JSON.parse(raw) as Partial<AppState>
     if (parsed.version !== VERSION) return defaultState()
-    return { ...defaultState(), ...parsed } as AppState
+    const state = { ...defaultState(), ...parsed } as AppState
+    // Older builds used Gemini; its model names do not exist on the Claude API.
+    const model = typeof state.settings?.model === 'string' && state.settings.model.startsWith('claude') ? state.settings.model : DEFAULT_MODEL
+    const lang = state.settings?.lang === 'en' || state.settings?.lang === 'zh' ? state.settings.lang : null
+    return { ...state, settings: { model, lang } }
   } catch {
     return defaultState()
   }

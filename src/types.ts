@@ -64,7 +64,7 @@ export interface FridgeItem {
 export interface FridgeScan {
   id: string
   date: string
-  source: 'demo' | 'gemini'
+  source: 'demo' | 'claude'
   sampleId?: string
   predicted: FridgeItem[]
   confirmed: FridgeItem[]
@@ -89,10 +89,16 @@ export interface PlanLine {
   grams: number
 }
 
+export interface MealStep {
+  kind: 'boil' | 'pan' | 'eggs' | 'oats' | 'steam' | 'raw' | 'assemble'
+  /** Food ids the step applies to (empty for 'assemble'). */
+  foods: string[]
+}
+
 export interface Meal {
-  name: string
+  name: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'
   lines: PlanLine[]
-  steps: string[]
+  steps: MealStep[]
 }
 
 export interface Gap {
@@ -103,7 +109,7 @@ export interface Gap {
 }
 
 export interface Plan {
-  source: 'local' | 'gemini'
+  source: 'local'
   meals: Meal[]
   totals: Macros
   targets: Targets

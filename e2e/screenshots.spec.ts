@@ -39,7 +39,7 @@ function seeded(extra: Record<string, unknown> = {}) {
     scans: [{ id: 'demo-cut', date: '2026-10-18', source: 'demo', sampleId: cut.id, predicted: cut.predicted, confirmed: cut.actual }],
     draft: null,
     logs,
-    settings: { model: 'gemini-3.8-flash' },
+    settings: { model: 'claude-opus-5-5', lang: 'en' },
     ...extra,
   }
 }
@@ -81,17 +81,17 @@ test('confirm with scanner mistakes', async ({ page }) => {
   await withState(page, seeded({ draft: { id: 'd', date: '2026-10-18', source: 'demo', sampleId: cut.id, predicted: cut.predicted, confirmed: cut.predicted } }))
   await page.goto('./#/fridge/confirm')
   await shoot(page, '04-confirm')
-  // Correct the yoghurt the scanner read as milk: this is the labelling step.
-  await page.getByRole('textbox', { name: 'Item name' }).nth(2).fill('Greek yoghurt tub')
-  await page.locator('select').nth(2).selectOption('greek_yogurt')
+  // Correct the yoghurt the scanner read as milk, and add the missed spinach: the labelling step.
+  const rows = page.locator('details.xrow')
+  await rows.nth(2).locator('summary').click()
+  await rows.nth(2).locator('select').selectOption('greek_yogurt')
+  await rows.nth(2).locator('summary').click()
   await page.getByRole('button', { name: 'Add a missing item' }).click()
-  await page.getByRole('textbox', { name: 'Item name' }).last().fill('Baby spinach bag')
-  await page.locator('select').last().selectOption('spinach')
-  await page.getByRole('button', { name: /Stuck/ }).click()
+  await rows.last().locator('summary').click()
+  await rows.last().locator('select').selectOption('spinach')
+  await rows.last().getByRole('spinbutton').first().fill('120')
   await page.evaluate(() => document.fonts.ready)
   await page.screenshot({ path: `${OUT}/full/05-confirm-corrected.png`, fullPage: true })
-  // Viewport shot framed on the corrected rows, for the README and deck.
-  await page.getByRole('heading', { name: /items$/ }).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 80))
   await page.screenshot({ path: `${OUT}/05-confirm-corrected.png` })
 })
 
@@ -99,24 +99,26 @@ test('plan', async ({ page }) => {
   await withState(page, seeded())
   await page.goto('./#/plan')
   await expect(page.getByRole('heading', { name: 'Meals' })).toBeVisible()
+  await page.locator('details.xrow').first().locator('summary').click()
   await shoot(page, '06-plan')
 })
 
 test('shop', async ({ page }) => {
   await withState(page, seeded())
   await page.goto('./#/shop')
-  await expect(page.getByText('TOTAL')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'By store' })).toBeVisible()
   await shoot(page, '07-shop')
 })
 
 test('predict', async ({ page }) => {
   await withState(page, seeded())
   await page.goto('./#/predict')
-  await expect(page.getByRole('heading', { name: 'This week' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What pushed it' })).toBeVisible()
   await shoot(page, '08-predict')
-  await page.getByRole('heading', { name: 'How the model learned' }).scrollIntoViewIfNeeded()
+  await page.getByRole('heading', { name: 'How the model learned' }).click()
+  await page.getByRole('heading', { name: 'How the model learned' }).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 60))
   await page.screenshot({ path: `${OUT}/09-predict-training.png` })
-  await page.getByRole('heading', { name: 'Test results' }).scrollIntoViewIfNeeded()
+  await page.locator('table.t').filter({ hasText: '↓ / →' }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: `${OUT}/10-predict-test.png` })
 })
 
@@ -128,7 +130,7 @@ test('predict: takeaway week', async ({ page }) => {
     seeded({ logs: stalledLogs, scans: [{ id: 'demo-tw', date: '2026-10-18', source: 'demo', sampleId: tw.id, predicted: tw.predicted, confirmed: tw.actual }] }),
   )
   await page.goto('./#/predict')
-  await expect(page.getByRole('heading', { name: 'This week' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What pushed it' })).toBeVisible()
   await shoot(page, '08b-predict-takeaway')
 })
 
@@ -150,6 +152,33 @@ test('safety: unhealthy target is refused', async ({ page }) => {
     seeded({ profile: { ...profile, sex: 'female', age: 19, heightCm: 160, weightKg: 50, targetWeightKg: 45, activity: 'light' } }),
   )
   await page.goto('./#/plan')
-  await expect(page.getByText(/healthy weight range/)).toBeVisible()
+  await expect(page.getByText(/below the healthy range/)).toBeVisible()
   await shoot(page, '13-safety')
+})
+
+test.describe('Chinese', () => {
+  const zh = (extra: Record<string, unknown> = {}) => seeded({ settings: { model: 'claude-opus-5-5', lang: 'zh' }, ...extra })
+
+  test('fridge (zh)', async ({ page }) => {
+    await withState(page, zh())
+    await page.goto('./#/fridge')
+    await expect(page.getByRole('heading', { name: '扫描冰箱' })).toBeVisible()
+    await shoot(page, 'zh-03-fridge')
+  })
+
+  test('plan (zh)', async ({ page }) => {
+    await withState(page, zh())
+    await page.goto('./#/plan')
+    await expect(page.getByRole('heading', { name: '三餐' })).toBeVisible()
+    await page.locator('details.xrow').first().locator('summary').click()
+    await shoot(page, 'zh-06-plan')
+  })
+
+  test('predict (zh)', async ({ page }) => {
+    const tw = DEMO_FRIDGES[2]
+    await withState(page, zh({ scans: [{ id: 'demo-tw', date: '2026-10-18', source: 'demo', sampleId: tw.id, predicted: tw.predicted, confirmed: tw.actual }] }))
+    await page.goto('./#/predict')
+    await expect(page.getByRole('heading', { name: '影响因素' })).toBeVisible()
+    await shoot(page, 'zh-08-predict')
+  })
 })

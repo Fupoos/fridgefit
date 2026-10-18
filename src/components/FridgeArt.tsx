@@ -32,11 +32,11 @@ const WIDTH: Record<Glyph, number> = {
 }
 
 const C = {
-  line: '#2c6a4d',
-  fill1: '#dcebe2',
-  fill2: '#bfd9c9',
-  fill3: '#93bda4',
-  fill4: '#66a07f',
+  line: '#7d4824',
+  fill1: '#f3e3d3',
+  fill2: '#e9cbb0',
+  fill3: '#daa982',
+  fill4: '#c78a5c',
   paper: '#ffffff',
   warm: '#efe6d2',
 }
@@ -127,15 +127,15 @@ export function FridgeArt({ items, title }: { items: FridgeItem[]; title: string
   return (
     <svg viewBox="0 0 300 324" role="img" aria-label={title} style={{ width: '100%', height: 'auto', display: 'block' }}>
       <title>{title}</title>
-      <rect x={4} y={4} width={292} height={316} rx={18} fill="#f7fbf9" stroke="#b5c4bd" strokeWidth={2} />
-      <rect x={4} y={4} width={292} height={16} rx={8} fill="#e6eeea" />
+      <rect x={4} y={4} width={292} height={316} rx={18} fill="#fffdf8" stroke="#d9cbb6" strokeWidth={2} />
+      <rect x={4} y={4} width={292} height={16} rx={8} fill="#f3ece0" />
       {SHELF_Y.slice(0, 3).map((y) => (
-        <rect key={y} x={10} y={y} width={280} height={5} rx={2} fill="#d3ddd8" />
+        <rect key={y} x={10} y={y} width={280} height={5} rx={2} fill="#ebe1d2" />
       ))}
-      <rect x={12} y={250} width={276} height={62} rx={8} fill="#eef5f1" stroke="#b5c4bd" strokeWidth={1.5} />
+      <rect x={12} y={250} width={276} height={62} rx={8} fill="#faf3e8" stroke="#d9cbb6" strokeWidth={1.5} />
       {drawn}
-      <rect x={12} y={290} width={276} height={22} rx={6} fill="#ffffff" fillOpacity={0.6} stroke="#b5c4bd" strokeWidth={1.5} />
-      <rect x={130} y={298} width={40} height={5} rx={2.5} fill="#b5c4bd" />
+      <rect x={12} y={290} width={276} height={22} rx={6} fill="#ffffff" fillOpacity={0.6} stroke="#d9cbb6" strokeWidth={1.5} />
+      <rect x={130} y={298} width={40} height={5} rx={2.5} fill="#d9cbb6" />
     </svg>
   )
 }

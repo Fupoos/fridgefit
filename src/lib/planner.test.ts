@@ -148,3 +148,29 @@ describe('findGaps', () => {
     expect(findGaps({ kcal: 2300, protein: 165, fat: 60, carbs: 270 }, 450, targets, profile, TEST_FOOD_MAP)).toEqual([])
   })
 })
+
+describe('stepsFor', () => {
+  it('returns language-neutral step codes with the food ids they apply to', async () => {
+    const { stepsFor } = await import('./planner')
+    const steps = stepsFor(
+      [
+        { foodId: 'rice', label: 'Rice', grams: 80 },
+        { foodId: 'chicken_breast', label: 'Chicken', grams: 150 },
+        { foodId: 'broccoli', label: 'Broccoli', grams: 100 },
+        { foodId: 'spinach', label: 'Spinach', grams: 60 },
+      ],
+      TEST_FOOD_MAP,
+    )
+    expect(steps).toEqual([
+      { kind: 'boil', foods: ['rice'] },
+      { kind: 'pan', foods: ['chicken_breast'] },
+      { kind: 'steam', foods: ['broccoli'] },
+      { kind: 'raw', foods: ['spinach'] },
+    ])
+  })
+
+  it('says no cooking is needed for snack-only meals', async () => {
+    const { stepsFor } = await import('./planner')
+    expect(stepsFor([{ foodId: 'greek_yogurt', label: 'Yoghurt', grams: 170 }], TEST_FOOD_MAP)).toEqual([{ kind: 'assemble', foods: [] }])
+  })
+})

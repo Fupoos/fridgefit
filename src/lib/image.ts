@@ -4,9 +4,12 @@ export function fitWithin(width: number, height: number, max: number): { width: 
   return { width: Math.round(width * scale), height: Math.round(height * scale) }
 }
 
+/** Error message thrown when the browser cannot decode the photo; the UI translates it. */
+export const UNREADABLE_PHOTO = 'unreadable-photo'
+
 export interface PreparedImage {
   base64: string
-  mimeType: string
+  mimeType: 'image/jpeg'
   bytes: number
   width: number
   height: number
@@ -21,9 +24,8 @@ export async function prepareImage(file: File, maxEdge = 1024, quality = 0.8): P
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
   } catch {
-    // Some browsers cannot decode HEIC; Gemini accepts it directly if it is small enough.
-    if (file.size > 15 * 1024 * 1024) throw new Error('This photo format could not be read. Try a JPEG or a screenshot.')
-    return { base64: await toBase64(file), mimeType: file.type || 'image/heic', bytes: file.size, width: 0, height: 0 }
+    // Claude accepts JPEG/PNG/GIF/WebP only, so a photo the browser cannot decode (e.g. some HEIC) cannot be sent.
+    throw new Error(UNREADABLE_PHOTO)
   }
 
   const { width, height } = fitWithin(bitmap.width, bitmap.height, maxEdge)

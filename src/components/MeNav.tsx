@@ -1,8 +1,11 @@
+import { useI18n } from '../i18n'
+
 export function MeNav({ current }: { current: 'profile' | 'log' | 'settings' }) {
+  const { t } = useI18n()
   const items = [
-    { key: 'profile', href: '#/me', label: 'Profile' },
-    { key: 'log', href: '#/me/log', label: 'Check-in' },
-    { key: 'settings', href: '#/me/settings', label: 'Settings' },
+    { key: 'profile', href: '#/me', label: t('me.profile') },
+    { key: 'log', href: '#/me/log', label: t('me.log') },
+    { key: 'settings', href: '#/me/settings', label: t('me.settings') },
   ] as const
   return (
     <nav className="segmented" aria-label="Me">

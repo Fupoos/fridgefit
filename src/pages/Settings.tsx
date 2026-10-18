@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { MeNav } from '../components/MeNav'
-import { DEFAULT_MODEL, GeminiError, testKey } from '../lib/gemini'
+import { type Key, type Lang, useI18n } from '../i18n'
+import { ClaudeError, DEFAULT_MODEL, testKey } from '../lib/claude'
 import { clearAll, defaultState, exportJSON, loadKey, saveKey } from '../lib/storage'
 import { type AppApi, go } from '../state'
 
 export function Settings({ api }: { api: AppApi }) {
+  const { t, lang } = useI18n()
   const stored = loadKey()
   const [key, setKey] = useState(stored.key)
   const [remember, setRemember] = useState(stored.remember)
@@ -14,19 +16,21 @@ export function Settings({ api }: { api: AppApi }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const adult = (api.state.profile?.age ?? 0) >= 18
 
+  const setLang = (l: Lang) => api.update((s) => ({ ...s, settings: { ...s.settings, lang: l } }))
+
   const saveAi = () => {
     saveKey(key, remember)
     api.update((s) => ({ ...s, settings: { ...s.settings, model: model.trim() || DEFAULT_MODEL } }))
-    setStatus(key.trim() ? 'Saved. Photo scanning is on.' : 'Key removed. Photo scanning is off.')
+    setStatus(key.trim() ? t('settings.saved') : t('settings.removed'))
   }
 
   const check = async () => {
-    setStatus('Checking…')
+    setStatus(t('settings.checking'))
     try {
       await testKey({ apiKey: key, model: model.trim() || DEFAULT_MODEL })
-      setStatus('The key works.')
+      setStatus(t('settings.works'))
     } catch (e) {
-      setStatus(e instanceof GeminiError ? e.message : 'Could not check the key.')
+      setStatus(e instanceof ClaudeError ? t(`err.${e.kind}` as Key) : t('err.network'))
     }
   }
 
@@ -47,51 +51,53 @@ export function Settings({ api }: { api: AppApi }) {
     <>
       <MeNav current="settings" />
       <div className="page-head">
-        <h1>Settings</h1>
+        <h1>{t('settings.title')}</h1>
       </div>
 
-      <section className="shelf">
-        <h2>Photo scanning</h2>
+      <section className="card">
+        <h2>{t('settings.lang')}</h2>
+        <div className="segmented" role="group" aria-label={t('settings.lang')}>
+          <button aria-pressed={lang === 'en'} onClick={() => setLang('en')}>
+            English
+          </button>
+          <button aria-pressed={lang === 'zh'} onClick={() => setLang('zh')}>
+            中文
+          </button>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>{t('settings.claude')}</h2>
         {adult ? (
           <>
-            <p className="small">
-              FridgeFit uses Google Gemini to recognise food. Get a free key at{' '}
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
-                Google AI Studio
-              </a>
-              . The key stays in this browser and is sent only to Google.
-            </p>
+            <p className="small muted">{t('settings.claudeLead')}</p>
             <label className="field">
-              Gemini API key
+              {t('settings.key')}
               <div className="row" style={{ flexWrap: 'nowrap' }}>
                 <input
                   className="inline"
                   type={show ? 'text' : 'password'}
                   autoComplete="off"
                   spellCheck={false}
+                  placeholder="sk-ant-…"
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
                 />
-                <button type="button" className="btn ghost" onClick={() => setShow((v) => !v)}>
-                  {show ? 'Hide' : 'Show'}
+                <button type="button" className="btn ghost small" onClick={() => setShow((v) => !v)}>
+                  {show ? t('settings.hide') : t('settings.show')}
                 </button>
               </div>
             </label>
-            <label className="switch">
+            <label className="switch small">
               <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-              <span>Remember on this device (otherwise forgotten when you close the tab)</span>
-            </label>
-            <label className="field">
-              Model
-              <input value={model} onChange={(e) => setModel(e.target.value)} spellCheck={false} />
-              <span className="hint">Default {DEFAULT_MODEL}. Change only if Google retires it.</span>
+              <span>{t('settings.remember')}</span>
             </label>
             <div className="row">
-              <button className="btn" onClick={saveAi}>
-                Save
+              <button className="btn small" onClick={saveAi}>
+                {t('settings.save')}
               </button>
-              <button className="btn ghost" onClick={check} disabled={!key.trim()}>
-                Test key
+              <button className="btn ghost small" onClick={check} disabled={!key.trim()}>
+                {t('settings.test')}
               </button>
             </div>
             {status && (
@@ -99,60 +105,65 @@ export function Settings({ api }: { api: AppApi }) {
                 {status}
               </p>
             )}
-            <div className="notice">
-              <p className="small">
-                On Google's free tier, what you send may be used to improve Google's products and may be read by human reviewers. Only photograph
-                food. Keep medication, mail and people out of the shot.
-              </p>
-            </div>
+            <p className="small">
+              {t('settings.maxCredit')}{' '}
+              <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noreferrer">
+                {t('settings.console')}
+              </a>
+            </p>
+            <details className="fold">
+              <summary>{t('settings.privacy')}</summary>
+              <div className="stack">
+                <p className="small">{t('settings.privacyText')}</p>
+                <label className="field">
+                  {t('settings.model')}
+                  <input value={model} onChange={(e) => setModel(e.target.value)} spellCheck={false} />
+                  <span className="hint">{t('settings.modelHint', { model: DEFAULT_MODEL })}</span>
+                </label>
+              </div>
+            </details>
           </>
         ) : (
-          <p className="small">Gemini is only available to people 18 and over, so photo scanning is turned off. Sample fridges still work.</p>
+          <p className="small">{t('settings.under18')}</p>
         )}
       </section>
 
-      <section className="shelf">
-        <h2>Your data</h2>
-        <label className="switch">
+      <section className="card">
+        <h2>{t('settings.data')}</h2>
+        <label className="switch small">
           <input
             type="checkbox"
             checked={api.state.consent?.donate ?? false}
-            onChange={(e) =>
-              api.update((s) => ({ ...s, consent: { donate: e.target.checked, decidedAt: new Date().toISOString().slice(0, 10) } }))
-            }
+            onChange={(e) => api.update((s) => ({ ...s, consent: { donate: e.target.checked, decidedAt: new Date().toISOString().slice(0, 10) } }))}
           />
-          <span>
-            Donate anonymous weekly fridge patterns to the student food study
-            <br />
-            <span className="muted small">Prototype: records your choice only. Nothing is sent.</span>
-          </span>
+          <span>{t('settings.donate')}</span>
         </label>
         <div className="row">
-          <button className="btn ghost" onClick={exportData}>
-            Export my data
+          <button className="btn ghost small" onClick={exportData}>
+            {t('settings.export')}
           </button>
           {confirmDelete ? (
             <>
-              <button className="btn danger" onClick={deleteAll}>
-                Delete everything
+              <button className="btn danger small" onClick={deleteAll}>
+                {t('settings.deleteConfirm')}
               </button>
-              <button className="btn ghost" onClick={() => setConfirmDelete(false)}>
-                Keep my data
+              <button className="btn ghost small" onClick={() => setConfirmDelete(false)}>
+                {t('settings.keep')}
               </button>
             </>
           ) : (
-            <button className="btn ghost" onClick={() => setConfirmDelete(true)}>
-              Delete all data
+            <button className="btn ghost small" onClick={() => setConfirmDelete(true)}>
+              {t('settings.delete')}
             </button>
           )}
         </div>
-        {confirmDelete && <p className="small">This removes your profile, scans, check-ins and API key from this browser. It cannot be undone.</p>}
+        {confirmDelete && <p className="small">{t('settings.deleteNote')}</p>}
       </section>
 
       <p className="small muted">
-        FridgeFit is a COMU1130 student prototype. Nutrition values: USDA FoodData Central. Not medical advice.{' '}
+        {t('settings.footer')}{' '}
         <a href="https://github.com/Fupoos/fridgefit" target="_blank" rel="noreferrer">
-          Source code
+          {t('settings.source')}
         </a>
       </p>
     </>

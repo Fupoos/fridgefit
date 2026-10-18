@@ -76,3 +76,15 @@ export const LeafMark = (p: SVGProps<SVGSVGElement>) => (
     <path d="M9.5 16.5c0-2.5 2-4 5-4-.2 3-2 4.6-5 4Z" fill="currentColor" stroke="none" />
   </svg>
 )
+
+export const HeartIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.2 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10Z" />
+  </svg>
+)
+
+export const ChevronIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="m9 6 6 6-6 6" />
+  </svg>
+)

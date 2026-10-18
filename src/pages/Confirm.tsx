@@ -1,42 +1,36 @@
 import { useState } from 'react'
 import { FridgeArt } from '../components/FridgeArt'
-import { CloseIcon } from '../components/Icons'
-import { FOODS, FOOD_MAP } from '../data/foods'
+import { FOODS } from '../data/foods'
 import { DEMO_MAP } from '../data/samples'
+import { type Key, useI18n } from '../i18n'
 import { getPreview } from '../lib/preview'
 import { type AppApi, go } from '../state'
 import type { FoodCategory, FridgeItem } from '../types'
 
-const GROUPS: { cat: FoodCategory; label: string }[] = [
-  { cat: 'protein', label: 'Protein' },
-  { cat: 'dairy', label: 'Dairy and alternatives' },
-  { cat: 'produce', label: 'Fruit and veg' },
-  { cat: 'carb', label: 'Grains and starches' },
-  { cat: 'fat', label: 'Fats, nuts and spreads' },
-  { cat: 'snack', label: 'Snacks and ready meals' },
-  { cat: 'drink', label: 'Drinks' },
-]
+const GROUPS: FoodCategory[] = ['protein', 'dairy', 'produce', 'carb', 'fat', 'snack', 'drink']
 
 interface Row {
   item: FridgeItem
+  /** Index of the prediction this row came from; null if the user added it. */
   origin: number | null
 }
 
 const same = (a: FridgeItem | undefined, b: FridgeItem) =>
   !!a && a.foodId === b.foodId && a.grams === b.grams && a.useWithinDays === b.useWithinDays && a.label === b.label
 
+const COLS = { '--cols': 'minmax(0, 1fr) 4.2rem 4.6rem' } as React.CSSProperties
+
 export function Confirm({ api }: { api: AppApi }) {
+  const { t, food } = useI18n()
   const draft = api.state.draft
-  // Each row remembers which prediction it came from (null = added by the user).
   const [rows, setRows] = useState<Row[]>(() => draft?.confirmed.map((item, origin) => ({ item: { ...item }, origin })) ?? [])
-  const [showHint, setShowHint] = useState(false)
 
   if (!draft) {
     return (
       <div className="page-head">
-        <h1>Nothing to check yet</h1>
+        <h1>{t('confirm.empty')}</h1>
         <p>
-          <a href="#/fridge">Scan your fridge or pick a sample</a> first.
+          <a href="#/fridge">{t('confirm.goScan')}</a>
         </p>
       </div>
     )
@@ -61,96 +55,111 @@ export function Confirm({ api }: { api: AppApi }) {
   return (
     <>
       <div className="page-head">
-        <h1>Check what we found</h1>
-        <p>Fix anything the scanner got wrong. Every fix becomes a labelled example, which is how a scanner like this learns.</p>
+        <h1>{t('confirm.title')}</h1>
+        <p className="small">{t('confirm.lead')}</p>
       </div>
 
-      <section className="shelf">
-        {photo ? (
-          <img src={photo} alt="Your fridge photo" style={{ width: '100%', borderRadius: 8 }} />
-        ) : demo ? (
-          <FridgeArt items={demo.actual} title={`Sample fridge: ${demo.name}`} />
-        ) : null}
-        {demo && (
-          <div className="small">
-            <button className="linkish" onClick={() => setShowHint((v) => !v)}>
-              {showHint ? 'Hide the scanner’s mistakes' : 'Stuck? Show the scanner’s mistakes'}
-            </button>
-            {showHint && <p className="muted">{demo.mistakes}</p>}
-          </div>
-        )}
-      </section>
-
-      <section className="shelf">
-        <div className="shelf-head">
-          <h2>{rows.length} items</h2>
-          <span className="aside">
-            {corrections} correction{corrections === 1 ? '' : 's'}
-          </span>
+      <section className="card">
+        <div className="card-head">
+          <h2>{t('col.items')}: {rows.length}</h2>
+          {corrections > 0 && <span className="tag">{t('confirm.fixes', { n: corrections })}</span>}
         </div>
-        <div>
+        <div className="xrows" style={COLS}>
+          <div className="xrow-head">
+            <span>{t('col.item')}</span>
+            <span className="num">{t('col.grams')}</span>
+            <span style={{ textAlign: 'right' }}>{t('col.status')}</span>
+          </div>
           {rows.map(({ item: r, origin }, i) => {
             const changed = !same(original(rows[i]), r)
             const conf = origin === null ? undefined : draft.predicted[origin]?.confidence
+            const status =
+              origin === null ? (
+                <span className="tag">{t('status.added')}</span>
+              ) : changed ? (
+                <span className="tag">{t('status.fixed')}</span>
+              ) : conf !== undefined && conf < 0.6 ? (
+                <span className="tag unsure">{t('status.unsure')}</span>
+              ) : (
+                <span className="tag blank">—</span>
+              )
             return (
-              <div key={origin ?? `new-${i}`} className={`item-row${changed ? ' changed' : ''}`}>
-                <input className="label-input" aria-label="Item name" value={r.label} onChange={(e) => edit(i, { label: e.target.value })} />
-                <div className="row" style={{ flexWrap: 'nowrap' }}>
-                  {changed ? <span className="tag">Corrected</span> : conf !== undefined && conf < 0.6 ? <span className="tag warn">Unsure</span> : null}
-                  <button className="icon-btn" aria-label={`Remove ${r.label}`} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>
-                    <CloseIcon width={18} height={18} />
+              <details key={origin ?? `new-${i}`} className="xrow">
+                <summary>
+                  <span className="ellipsis">{r.label}</span>
+                  <span className="num">{r.grams}</span>
+                  {status}
+                </summary>
+                <div className="xbody">
+                  <div className="item-edit">
+                    <label className="span-2">
+                      {t('confirm.name')}
+                      <input aria-label={t('confirm.name')} value={r.label} onChange={(e) => edit(i, { label: e.target.value })} />
+                    </label>
+                    <label className="span-2">
+                      {t('confirm.match')}
+                      <select value={r.foodId} onChange={(e) => edit(i, { foodId: e.target.value, label: e.target.value === 'other' ? r.label : food(e.target.value) })}>
+                        {GROUPS.map((g) => (
+                          <optgroup key={g} label={t(`cat.${g}` as Key)}>
+                            {FOODS.filter((f) => f.category === g).map((f) => (
+                              <option key={f.id} value={f.id}>
+                                {food(f.id)}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                        <option value="other">{t('confirm.other')}</option>
+                      </select>
+                    </label>
+                    <label>
+                      {t('col.grams')}
+                      <input type="number" inputMode="numeric" min={0} value={r.grams} onChange={(e) => edit(i, { grams: e.target.valueAsNumber || 0 })} />
+                    </label>
+                    <label>
+                      {t('confirm.useWithin')}
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={r.useWithinDays ?? ''}
+                        onChange={(e) => edit(i, { useWithinDays: Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber })}
+                      />
+                    </label>
+                  </div>
+                  <button className="btn ghost small" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>
+                    {t('confirm.remove')}
                   </button>
                 </div>
-                <div className="item-fields">
-                  <label>
-                    Matches
-                    <select value={r.foodId} onChange={(e) => edit(i, { foodId: e.target.value, label: FOOD_MAP.get(e.target.value)?.name ?? r.label })}>
-                      {GROUPS.map((g) => (
-                        <optgroup key={g.cat} label={g.label}>
-                          {FOODS.filter((f) => f.category === g.cat).map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                      <option value="other">Something else</option>
-                    </select>
-                  </label>
-                  <label>
-                    Grams
-                    <input type="number" inputMode="numeric" min={0} value={r.grams} onChange={(e) => edit(i, { grams: e.target.valueAsNumber || 0 })} />
-                  </label>
-                  <label>
-                    Use within
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      placeholder="days"
-                      value={r.useWithinDays ?? ''}
-                      onChange={(e) => edit(i, { useWithinDays: Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber })}
-                    />
-                  </label>
-                </div>
-              </div>
+              </details>
             )
           })}
         </div>
         <button
-          className="btn ghost"
-          onClick={() => setRows((rs) => [...rs, { item: { foodId: 'other', label: 'New item', grams: 100, useWithinDays: null }, origin: null }])}
+          className="btn ghost small"
+          onClick={() => setRows((rs) => [...rs, { item: { foodId: 'other', label: t('confirm.newItem'), grams: 100, useWithinDays: null }, origin: null }])}
         >
-          Add a missing item
+          {t('confirm.add')}
         </button>
       </section>
 
       <button className="btn block" onClick={save} disabled={rows.length === 0}>
-        Save {rows.length} items and plan my meals
+        {t('confirm.save', { n: rows.length })}
       </button>
-      <p className="small muted">
-        Weights are as bought (raw meat, dry rice and oats). Rough guesses are fine. {corrections > 0 && `Your ${corrections} correction${corrections === 1 ? '' : 's'} will be saved as labels with this scan.`}
-      </p>
+
+      <details className="fold">
+        <summary>{photo ? t('confirm.showFridge') : demo ? t('confirm.hint') : t('confirm.showFridge')}</summary>
+        <div className="stack">
+          {photo ? (
+            <img src={photo} alt="" style={{ width: '100%', borderRadius: 8 }} />
+          ) : demo ? (
+            <>
+              <p className="small">{t(`mistake.${demo.id}` as Key)}</p>
+              <FridgeArt items={demo.actual} title={t(`sample.${demo.id}` as Key)} />
+            </>
+          ) : null}
+          <p className="small muted">{t('confirm.weights')}</p>
+        </div>
+      </details>
     </>
   )
 }

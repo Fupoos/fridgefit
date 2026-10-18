@@ -1,4 +1,4 @@
-import type { Food, FridgeItem, Gap, Macros, Meal, Plan, PlanLine, Profile, Targets } from '../types'
+import type { Food, FridgeItem, Gap, Macros, Meal, MealStep, Plan, PlanLine, Profile, Targets } from '../types'
 import { allowedFood, isProteinSource } from './diet'
 
 export type FoodMap = Map<string, Food>
@@ -235,30 +235,26 @@ const COOKED_PROTEIN = new Set(['chicken_breast', 'chicken_thigh', 'beef_mince',
 const BOILED_CARB = new Set(['rice', 'pasta', 'potato', 'sweet_potato'])
 const RAW_VEG = new Set(['lettuce', 'cucumber', 'tomato', 'spinach', 'carrot', 'capsicum'])
 
-function names(lines: PlanLine[]): string {
-  const n = lines.map((l) => l.label.toLowerCase())
-  return n.length <= 1 ? n.join('') : `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`
-}
+/** Short, generic cooking steps as language-neutral codes; the UI words them. */
+export function stepsFor(lines: PlanLine[], foods: FoodMap): MealStep[] {
+  const steps: MealStep[] = []
+  const ids = (pred: (l: PlanLine, f: Food) => boolean) =>
+    lines
+      .filter((l) => {
+        const f = foods.get(l.foodId)
+        return f !== undefined && pred(l, f)
+      })
+      .map((l) => l.foodId)
+  const add = (kind: MealStep['kind'], foods: string[]) => {
+    if (foods.length) steps.push({ kind, foods })
+  }
 
-/** Short, generic cooking steps so the plan reads like something you can actually make. */
-export function stepsFor(lines: PlanLine[], foods: FoodMap): string[] {
-  const steps: string[] = []
-  const by = (pred: (l: PlanLine, f: Food) => boolean) =>
-    lines.filter((l) => {
-      const f = foods.get(l.foodId)
-      return f !== undefined && pred(l, f)
-    })
-
-  const carbs = by((l) => BOILED_CARB.has(l.foodId))
-  if (carbs.length) steps.push(`Cook the ${names(carbs)} (boil or microwave until tender).`)
-  const cooked = by((l) => COOKED_PROTEIN.has(l.foodId))
-  if (cooked.length) steps.push(`Season and pan-fry or bake the ${names(cooked)} until cooked through.`)
-  if (lines.some((l) => l.foodId === 'eggs')) steps.push('Scramble, poach or boil the eggs.')
-  if (lines.some((l) => l.foodId === 'oats')) steps.push('Microwave the oats with water or milk for 2 minutes.')
-  const veg = by((l, f) => f.category === 'produce' && !MEAL_FIT[l.foodId]?.includes('Breakfast') && !RAW_VEG.has(l.foodId))
-  if (veg.length) steps.push(`Steam or stir-fry the ${names(veg)}.`)
-  const raw = by((l) => RAW_VEG.has(l.foodId))
-  if (raw.length) steps.push(`Chop the ${names(raw)} and serve fresh.`)
-  if (!steps.length) steps.push('Assemble and enjoy — no cooking needed.')
+  add('boil', ids((l) => BOILED_CARB.has(l.foodId)))
+  add('pan', ids((l) => COOKED_PROTEIN.has(l.foodId)))
+  add('eggs', ids((l) => l.foodId === 'eggs'))
+  add('oats', ids((l) => l.foodId === 'oats'))
+  add('steam', ids((l, f) => f.category === 'produce' && !MEAL_FIT[l.foodId]?.includes('Breakfast') && !RAW_VEG.has(l.foodId)))
+  add('raw', ids((l) => RAW_VEG.has(l.foodId)))
+  if (!steps.length) steps.push({ kind: 'assemble', foods: [] })
   return steps
 }

@@ -106,3 +106,36 @@ export const DEMO_FRIDGES: DemoFridge[] = [
 ]
 
 export const DEMO_MAP = new Map(DEMO_FRIDGES.map((d) => [d.id, d]))
+
+/** Chinese versions of the labels used in the sample fridges. */
+export const SAMPLE_LABELS_ZH: Record<string, string> = {
+  'Chicken breast': '鸡胸肉',
+  'Eggs (dozen)': '鸡蛋（一打）',
+  'Greek yoghurt tub': '希腊酸奶（一桶）',
+  Broccoli: '西兰花',
+  'Baby spinach bag': '嫩菠菜（一袋）',
+  Bananas: '香蕉',
+  'Frozen mixed veg': '速冻杂菜',
+  'White rice': '白米',
+  'Rolled oats': '燕麦片',
+  'Olive oil': '橄榄油',
+  'Milk carton?': '牛奶盒？',
+  'Chicken thigh fillets': '鸡腿肉',
+  'Full-cream milk': '全脂牛奶',
+  'Canned lentils x3': '扁豆罐头 ×3',
+  'Peanut butter': '花生酱',
+  'Cheddar block': '切达奶酪块',
+  'Chicken fillets': '鸡肉',
+  'Tins (unknown)': '罐头（未知）',
+  'Cola bottle': '可乐',
+  'Energy drinks x2': '能量饮料 ×2',
+  'Beer x6': '啤酒 ×6',
+  'Frozen pizza': '冷冻披萨',
+  'Potato chips': '薯片',
+  'Sliced ham': '火腿片',
+  'Cheddar slices': '切达奶酪片',
+  'Eggs (half dozen)': '鸡蛋（半打）',
+  'One carrot': '一根胡萝卜',
+  'Leftover pad thai': '剩的泰式炒河粉',
+  'Sliced meat': '肉片',
+}

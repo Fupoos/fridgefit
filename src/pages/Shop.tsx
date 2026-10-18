@@ -1,15 +1,16 @@
 import { useMemo } from 'react'
 import { FOOD_MAP } from '../data/foods'
 import { PRICES_CHECKED_ON, QLD_CATALOG, SEASONAL_SEQ } from '../data/qldGrocery'
+import { type Key, useI18n } from '../i18n'
 import { planShopping } from '../lib/shopping'
 import type { AppApi } from '../state'
 import type { Store } from '../types'
 
 const money = (v: number) => v.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })
 const STORES: Store[] = ['ALDI', 'Coles', 'Woolworths']
-const REASON = { protein: 'protein', produce: 'fruit & veg', energy: 'energy' } as const
 
 export function Shop({ api }: { api: AppApi }) {
+  const { t, locale } = useI18n()
   const { state, targets, latestScan } = api
   const profile = state.profile
   const list = useMemo(
@@ -20,37 +21,76 @@ export function Shop({ api }: { api: AppApi }) {
   if (!list || !profile) return null
 
   const seasonal = new Set(SEASONAL_SEQ?.foodIds ?? [])
-  const pct = (have: number, added: number, need: number) => Math.min(100, Math.round(((have + added) / need) * 100))
-  const checked = new Date(PRICES_CHECKED_ON + 'T00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+  const byStore = STORES.map((store) => {
+    const lines = list.lines.filter((l) => l.product.store === store)
+    return { store, lines, items: lines.reduce((a, l) => a + l.packs, 0), subtotal: lines.reduce((a, l) => a + l.cost, 0) }
+  }).filter((s) => s.lines.length > 0)
+  const pct = (part: number, need: number) => Math.min(100, Math.round((part / need) * 100))
+  const checked = new Date(PRICES_CHECKED_ON + 'T00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
 
   return (
     <>
       <div className="page-head">
-        <h1>This week's shop</h1>
-        <p>
-          What to buy for the next 7 days, after counting what is already in your fridge. Only products sold at Queensland supermarkets, within
-          your {money(profile.weeklyBudgetAud)} budget.
-        </p>
+        <h1>{t('shop.title')}</h1>
+        <p className="small">{t('shop.lead')}</p>
       </div>
 
       {!latestScan && (
         <div className="notice">
-          <p>
-            No fridge scan yet, so this list assumes an empty fridge. <a href="#/fridge">Scan your fridge</a> to buy less.
-          </p>
+          <p>{t('shop.noScan')}</p>
         </div>
       )}
 
-      <div className="receipt" aria-label="Shopping list">
-        <div style={{ textAlign: 'center' }}>
-          <b>FRIDGEFIT WEEKLY SHOP</b>
-          <br />
-          {new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' })}
+      <div className="stat-pair">
+        <div className="stat">
+          <span className="label">{t('shop.total')}</span>
+          <span className="value">{money(list.total)}</span>
         </div>
-        {STORES.map((store) => {
-          const lines = list.lines.filter((l) => l.product.store === store)
-          if (!lines.length) return null
-          return (
+        <div className="stat">
+          <span className="label">{t('shop.left')}</span>
+          <span className="value">{money(list.budget - list.total)}</span>
+        </div>
+      </div>
+
+      {byStore.length > 0 ? (
+        <section className="card">
+          <h2>{t('shop.byStore')}</h2>
+          <table className="t">
+            <thead>
+              <tr>
+                <th>{t('col.store')}</th>
+                <th className="num">{t('col.items')}</th>
+                <th className="num">{t('col.subtotal')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byStore.map((s) => (
+                <tr key={s.store}>
+                  <td className="strong">{s.store}</td>
+                  <td className="num">{s.items}</td>
+                  <td className="num">{money(s.subtotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>{t('shop.total')}</td>
+                <td className="num">{byStore.reduce((a, s) => a + s.items, 0)}</td>
+                <td className="num">{money(list.total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </section>
+      ) : (
+        <p>{t('shop.nothing')}</p>
+      )}
+
+      {byStore.length > 0 && (
+        <div className="receipt" aria-label={t('shop.receiptTitle')}>
+          <div style={{ textAlign: 'center' }}>
+            <b>{t('shop.receiptTitle')}</b>
+          </div>
+          {byStore.map(({ store, lines }) => (
             <section key={store}>
               <h3>{store}</h3>
               {lines.map((l) => (
@@ -67,66 +107,63 @@ export function Shop({ api }: { api: AppApi }) {
                     {seasonal.has(l.product.foodId) && ' *'}
                   </span>
                   <span>{money(l.cost)}</span>
-                  <small>
-                    {l.product.packSize}, for {REASON[l.reason]}
-                  </small>
+                  <small>{t(`shop.for.${l.reason}` as Key)}</small>
                 </div>
               ))}
             </section>
-          )
-        })}
-        {list.lines.length === 0 && <p style={{ marginTop: 12 }}>Nothing to buy: your fridge covers the week.</p>}
-        <div className="r-total">
-          <span>TOTAL</span>
-          <span>{money(list.total)}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Budget left</span>
-          <span>{money(list.budget - list.total)}</span>
-        </div>
-        {seasonal.size > 0 && <p style={{ marginTop: 10 }}>* in season in South-East Queensland</p>}
-      </div>
-
-      <section className="shelf">
-        <h2>How much of the week this covers</h2>
-        <div className="bar-list">
-          {(
-            [
-              ['Protein', list.have.protein, list.added.protein, list.need.protein, 'g'],
-              ['Fruit and veg', list.have.produceG, list.added.produceG, list.need.produceG, 'g'],
-              ['Energy', list.have.kcal, list.added.kcal, list.need.kcal, 'kcal'],
-            ] as const
-          ).map(([label, have, added, need]) => (
-            <div className="bar-item" key={label}>
-              <span>{label}</span>
-              <span className="val">{pct(have, added, need)}%</span>
-              <div className="track" role="img" aria-label={`${label}: fridge ${Math.round((have / need) * 100)}%, list adds ${Math.round((added / need) * 100)}%`}>
-                <div className="fill" style={{ width: `${Math.min(100, (have / need) * 100)}%`, background: 'var(--basil-300)' }} />
-                <div
-                  className="fill"
-                  style={{ left: `calc(${Math.min(100, (have / need) * 100)}% + 2px)`, width: `${Math.max(0, Math.min(100 - (have / need) * 100, (added / need) * 100))}%` }}
-                />
-              </div>
-            </div>
           ))}
         </div>
-        <p className="small muted">Light: already in your fridge. Dark: added by this list.</p>
-        {list.unmet.length > 0 && (
-          <div className="notice">
-            {list.unmet.map((g) => (
-              <p key={g.nutrient}>
-                The budget runs out with {g.nutrient === 'kcal' ? `${g.shortBy.toLocaleString('en-AU')} kcal` : `${g.shortBy.toLocaleString('en-AU')} g of ${g.nutrient === 'produce' ? 'fruit and veg' : 'protein'}`} still
-                missing for the week.
-              </p>
+      )}
+
+      {list.unmet.length > 0 && (
+        <div className="notice">
+          {list.unmet.map((g) => (
+            <p key={g.nutrient}>{t(`shop.unmet.${g.nutrient}` as Key, { n: g.shortBy.toLocaleString('en-AU') })}</p>
+          ))}
+          <p className="small">{t('shop.help')}</p>
+        </div>
+      )}
+
+      <details className="card">
+        <summary>
+          <h2>{t('shop.coverage')}</h2>
+        </summary>
+        <table className="t">
+          <thead>
+            <tr>
+              <th>{t('col.nutrient')}</th>
+              <th className="num">{t('col.plan')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(
+              [
+                ['n.protein', list.have.protein, list.added.protein, list.need.protein],
+                ['n.produce', list.have.produceG, list.added.produceG, list.need.produceG],
+                ['n.kcal', list.have.kcal, list.added.kcal, list.need.kcal],
+              ] as const
+            ).map(([key, have, added, need]) => (
+              <tr key={key}>
+                <td style={{ width: '40%' }}>{t(key)}</td>
+                <td>
+                  <div className="bar-cell">
+                    <div className="mini-bar" style={{ display: 'flex' }} aria-hidden="true">
+                      <span style={{ width: `${pct(have, need)}%`, background: 'var(--clay-300)' }} />
+                      <span style={{ width: `${Math.max(0, pct(have + added, need) - pct(have, need))}%`, background: 'var(--clay-600)' }} />
+                    </div>
+                    <span className="num">{pct(have + added, need)}%</span>
+                  </div>
+                </td>
+              </tr>
             ))}
-            <p className="small">If money is tight, your university's student support service can point you to free food programs.</p>
-          </div>
-        )}
-      </section>
+          </tbody>
+        </table>
+        <p className="small muted">{t('shop.coverageNote')}</p>
+      </details>
 
       <p className="small muted">
-        Online shelf prices from Woolworths, Coles and ALDI Australia, checked on {checked} without choosing a store. Prices at your local store
-        and weekly specials will differ. Canned foods are counted at drained weight.
+        {t('shop.prices', { date: checked })}
+        {seasonal.size > 0 && ` ${t('shop.seasonal')}`}
       </p>
     </>
   )

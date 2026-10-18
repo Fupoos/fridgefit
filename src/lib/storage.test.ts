@@ -69,3 +69,21 @@ describe('storage', () => {
     expect(session.length).toBe(0)
   })
 })
+
+describe('settings migration', () => {
+  it('defaults to Claude Opus 5.5 and no fixed language', () => {
+    expect(defaultState().settings).toEqual({ model: 'claude-opus-5-5', lang: null })
+  })
+
+  it('replaces a model name saved by the old Gemini version', () => {
+    const s = new MemoryStorage()
+    s.setItem(STATE_KEY, JSON.stringify({ ...defaultState(), settings: { model: 'gemini-3.8-flash' } }))
+    expect(loadState(s).settings).toEqual({ model: 'claude-opus-5-5', lang: null })
+  })
+
+  it('keeps a saved language choice', () => {
+    const s = new MemoryStorage()
+    saveState({ ...defaultState(), settings: { model: 'claude-opus-5-5', lang: 'zh' } }, s)
+    expect(loadState(s).settings.lang).toBe('zh')
+  })
+})

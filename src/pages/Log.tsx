@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { WeightLine } from '../components/Charts'
 import { MeNav } from '../components/MeNav'
+import { type Key, useI18n } from '../i18n'
 import type { AppApi } from '../state'
 import type { WeeklyLog } from '../types'
 
@@ -11,6 +12,7 @@ function mondayOf(d: Date): string {
 }
 
 export function Log({ api }: { api: AppApi }) {
+  const { t, locale } = useI18n()
   const { state } = api
   const last = api.latestLog
   const [f, setF] = useState<WeeklyLog>(() => ({
@@ -34,49 +36,94 @@ export function Log({ api }: { api: AppApi }) {
     setSaved(true)
   }
 
-  const num = (label: string, k: keyof Omit<WeeklyLog, 'weekStart'>, step = 1, hint?: string) => (
+  const num = (label: Key, k: keyof Omit<WeeklyLog, 'weekStart'>, step = 1, hint?: Key) => (
     <label className="field">
-      {label}
+      {t(label)}
       <input type="number" inputMode="decimal" step={step} min={0} value={Number.isNaN(f[k]) ? '' : f[k]} onChange={(e) => set(k, e.target.valueAsNumber)} />
-      {hint && <span className="hint">{hint}</span>}
+      {hint && <span className="hint">{t(hint)}</span>}
     </label>
   )
+
+  const logs = [...state.logs].sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+  const short = (d: string) => new Date(d + 'T00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short' })
 
   return (
     <>
       <MeNav current="log" />
       <div className="page-head">
-        <h1>Weekly check-in</h1>
-        <p>One minute a week. Your weigh-in is the label the predictor learns from; the rest are its inputs.</p>
+        <h1>{t('log.title')}</h1>
+        <p className="small">{t('log.lead')}</p>
       </div>
 
-      <section className="shelf">
+      <section className="card">
         <div className="grid-2">
           <label className="field">
-            Week starting
+            {t('f.week')}
             <input type="date" value={f.weekStart} onChange={(e) => set('weekStart', e.target.value)} />
           </label>
-          {num('Weigh-in (kg)', 'weightKg', 0.1, 'Same scale, same time of day')}
-          {num('Training sessions', 'sessions')}
-          {num('Steps a day (thousands)', 'avgStepsK', 0.1, 'From Apple Health or Google Fit')}
-          {num('Sleep a night (hours)', 'avgSleepH', 0.1)}
-          {num('Items thrown out unused', 'expiredUnused')}
-          {num('Grocery trips', 'restocks')}
-          {num('Takeaway or delivery orders', 'takeawayOrders', 1, 'Could come from a linked Uber Eats account')}
+          {num('f.weighIn', 'weightKg', 0.1)}
+          {num('f.sessions', 'sessions')}
+          {num('f.takeaway', 'takeawayOrders', 1, 'log.takeawayHint')}
         </div>
+        <details className="fold">
+          <summary>{t('log.more')}</summary>
+          <div className="grid-2">
+            {num('f.steps', 'avgStepsK', 0.1)}
+            {num('f.sleep', 'avgSleepH', 0.1)}
+            {num('f.expired', 'expiredUnused')}
+            {num('f.trips', 'restocks')}
+          </div>
+        </details>
         <button className="btn block" onClick={save}>
-          Save check-in
+          {t('log.save')}
         </button>
         {saved && (
           <p className="small" role="status">
-            Saved. <a href="#/predict">See your prediction</a>
+            {t('log.saved')} <a href="#/predict">{t('log.seeForecast')}</a>
           </p>
         )}
       </section>
 
-      <section className="shelf">
-        <h2>Weigh-ins</h2>
-        <WeightLine points={state.logs.map((l) => ({ date: l.weekStart, kg: l.weightKg }))} target={state.profile?.targetWeightKg ?? f.weightKg} />
+      <section className="card">
+        <h2>{t('log.history')}</h2>
+        {logs.length < 2 ? (
+          <p className="muted small">{t('log.twoWeeks')}</p>
+        ) : (
+          <WeightLine
+            points={logs.map((l) => ({ date: l.weekStart, kg: l.weightKg }))}
+            target={state.profile?.targetWeightKg ?? f.weightKg}
+            targetLabel={t('chart.target', { kg: state.profile?.targetWeightKg ?? f.weightKg })}
+            locale={locale}
+          />
+        )}
+        {logs.length > 0 && (
+          <table className="t">
+            <thead>
+              <tr>
+                <th>{t('col.week')}</th>
+                <th className="num">{t('col.weight')}</th>
+                <th className="num">{t('col.change')}</th>
+                <th className="num">{t('col.train')}</th>
+                <th className="num">{t('col.take')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...logs].reverse().map((l) => {
+                const i = logs.indexOf(l)
+                const change = i > 0 ? l.weightKg - logs[i - 1].weightKg : null
+                return (
+                  <tr key={l.weekStart}>
+                    <td>{short(l.weekStart)}</td>
+                    <td className="num strong">{l.weightKg}</td>
+                    <td className="num">{change === null ? '—' : `${change > 0 ? '+' : change < 0 ? '−' : ''}${Math.abs(change).toFixed(1)}`}</td>
+                    <td className="num">{l.sessions}</td>
+                    <td className="num">{l.takeawayOrders}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
       </section>
     </>
   )
