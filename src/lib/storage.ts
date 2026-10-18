@@ -14,12 +14,14 @@ export interface AppState {
   consent: { donate: boolean; decidedAt: string } | null
   profile: Profile | null
   scans: FridgeScan[]
+  /** A scan waiting for the user to check it on the Confirm screen. */
+  draft: FridgeScan | null
   logs: WeeklyLog[]
   settings: { model: string }
 }
 
 export function defaultState(): AppState {
-  return { version: VERSION, consent: null, profile: null, scans: [], logs: [], settings: { model: DEFAULT_MODEL } }
+  return { version: VERSION, consent: null, profile: null, scans: [], draft: null, logs: [], settings: { model: DEFAULT_MODEL } }
 }
 
 function safeLocal(): Storage | null {
