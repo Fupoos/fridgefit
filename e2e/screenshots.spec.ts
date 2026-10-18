@@ -88,7 +88,11 @@ test('confirm with scanner mistakes', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Item name' }).last().fill('Baby spinach bag')
   await page.locator('select').last().selectOption('spinach')
   await page.getByRole('button', { name: /Stuck/ }).click()
-  await shoot(page, '05-confirm-corrected')
+  await page.evaluate(() => document.fonts.ready)
+  await page.screenshot({ path: `${OUT}/full/05-confirm-corrected.png`, fullPage: true })
+  // Viewport shot framed on the corrected rows, for the README and deck.
+  await page.getByRole('heading', { name: /items$/ }).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 80))
+  await page.screenshot({ path: `${OUT}/05-confirm-corrected.png` })
 })
 
 test('plan', async ({ page }) => {
