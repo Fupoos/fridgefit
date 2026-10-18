@@ -1,38 +1,15 @@
 import { useState } from 'react'
 import { MeNav } from '../components/MeNav'
-import { type Key, type Lang, useI18n } from '../i18n'
-import { ClaudeError, DEFAULT_MODEL, testKey } from '../lib/claude'
-import { clearAll, defaultState, exportJSON, loadKey, saveKey } from '../lib/storage'
+import { type Lang, useI18n } from '../i18n'
+import { clearAll, defaultState, exportJSON } from '../lib/storage'
 import { type AppApi, go } from '../state'
 
 export function Settings({ api }: { api: AppApi }) {
   const { t, lang } = useI18n()
-  const stored = loadKey()
-  const [key, setKey] = useState(stored.key)
-  const [remember, setRemember] = useState(stored.remember)
-  const [show, setShow] = useState(false)
-  const [model, setModel] = useState(api.state.settings.model)
-  const [status, setStatus] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const adult = (api.state.profile?.age ?? 0) >= 18
 
   const setLang = (l: Lang) => api.update((s) => ({ ...s, settings: { ...s.settings, lang: l } }))
-
-  const saveAi = () => {
-    saveKey(key, remember)
-    api.update((s) => ({ ...s, settings: { ...s.settings, model: model.trim() || DEFAULT_MODEL } }))
-    setStatus(key.trim() ? t('settings.saved') : t('settings.removed'))
-  }
-
-  const check = async () => {
-    setStatus(t('settings.checking'))
-    try {
-      await testKey({ apiKey: key, model: model.trim() || DEFAULT_MODEL })
-      setStatus(t('settings.works'))
-    } catch (e) {
-      setStatus(e instanceof ClaudeError ? `${t(`err.${e.kind}` as Key)}${e.detail ? ` (${e.detail})` : ''}` : t('err.network'))
-    }
-  }
 
   const exportData = () => {
     const url = URL.createObjectURL(new Blob([exportJSON()], { type: 'application/json' }))
@@ -67,60 +44,13 @@ export function Settings({ api }: { api: AppApi }) {
       </section>
 
       <section className="card">
-        <h2>{t('settings.claude')}</h2>
+        <h2>{t('settings.scan')}</h2>
         {adult ? (
           <>
-            <p className="small muted">{t('settings.claudeLead')}</p>
-            <label className="field">
-              {t('settings.key')}
-              <div className="row" style={{ flexWrap: 'nowrap' }}>
-                <input
-                  className="inline"
-                  type={show ? 'text' : 'password'}
-                  autoComplete="off"
-                  spellCheck={false}
-                  placeholder="sk-ant-…"
-                  value={key}
-                  onChange={(e) => setKey(e.target.value)}
-                />
-                <button type="button" className="btn ghost small" onClick={() => setShow((v) => !v)}>
-                  {show ? t('settings.hide') : t('settings.show')}
-                </button>
-              </div>
-            </label>
-            <label className="switch small">
-              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-              <span>{t('settings.remember')}</span>
-            </label>
-            <div className="row">
-              <button className="btn small" onClick={saveAi}>
-                {t('settings.save')}
-              </button>
-              <button className="btn ghost small" onClick={check} disabled={!key.trim()}>
-                {t('settings.test')}
-              </button>
-            </div>
-            {status && (
-              <p className="small" role="status">
-                {status}
-              </p>
-            )}
-            <p className="small">
-              {t('settings.maxCredit')}{' '}
-              <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noreferrer">
-                {t('settings.console')}
-              </a>
-            </p>
+            <p className="small">{t('settings.scanLead')}</p>
             <details className="fold">
               <summary>{t('settings.privacy')}</summary>
-              <div className="stack">
-                <p className="small">{t('settings.privacyText')}</p>
-                <label className="field">
-                  {t('settings.model')}
-                  <input value={model} onChange={(e) => setModel(e.target.value)} spellCheck={false} />
-                  <span className="hint">{t('settings.modelHint', { model: DEFAULT_MODEL })}</span>
-                </label>
-              </div>
+              <p className="small">{t('settings.privacyText')}</p>
             </details>
           </>
         ) : (

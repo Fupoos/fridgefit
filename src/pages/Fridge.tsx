@@ -1,31 +1,26 @@
 import { useState } from 'react'
 import { FridgeArt } from '../components/FridgeArt'
 import { CameraIcon, ImageIcon } from '../components/Icons'
-import { FOODS } from '../data/foods'
 import { DEMO_FRIDGES, type DemoFridge, SAMPLE_LABELS_ZH } from '../data/samples'
 import { type Key, useI18n } from '../i18n'
-import { ClaudeError, recognizeFridge } from '../lib/claude'
+import { SCAN_URL, ScanError, recognizeFridge } from '../lib/scan'
 import { UNREADABLE_PHOTO, prepareImage } from '../lib/image'
 import { setPreview } from '../lib/preview'
-import { loadKey } from '../lib/storage'
 import { type AppApi, go } from '../state'
 import type { FridgeItem } from '../types'
-
-const FOOD_IDS = FOODS.map((f) => f.id)
 
 export function Fridge({ api }: { api: AppApi }) {
   const { t, lang, locale } = useI18n()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [errorDetail, setErrorDetail] = useState<string | null>(null)
-  const key = loadKey().key
   const adult = (api.state.profile?.age ?? 0) >= 18
-  const canScan = Boolean(key) && adult
+  const canScan = Boolean(SCAN_URL) && adult
   const last = api.latestScan
 
   const localise = (items: FridgeItem[]) => (lang === 'zh' ? items.map((i) => ({ ...i, label: SAMPLE_LABELS_ZH[i.label] ?? i.label })) : items)
 
-  const useSample = (d: DemoFridge) => {
+  const pickSample = (d: DemoFridge) => {
     setPreview(null)
     const predicted = localise(d.predicted)
     api.update((s) => ({
@@ -44,14 +39,14 @@ export function Fridge({ api }: { api: AppApi }) {
       const img = await prepareImage(file)
       setPreview(`data:${img.mimeType};base64,${img.base64}`)
       setBusy(t('fridge.busyRead'))
-      const items = await recognizeFridge(img.base64, img.mimeType, FOOD_IDS, { apiKey: key, model: api.state.settings.model })
+      const items = await recognizeFridge(img.base64, img.mimeType)
       api.update((s) => ({
         ...s,
         draft: { id: `scan-${Date.now()}`, date: new Date().toISOString().slice(0, 10), source: 'claude', predicted: items, confirmed: items },
       }))
       go('/fridge/confirm')
     } catch (e) {
-      if (e instanceof ClaudeError) {
+      if (e instanceof ScanError) {
         setError(t(`err.${e.kind}` as Key))
         setErrorDetail(e.detail ?? null)
       }
@@ -95,13 +90,7 @@ export function Fridge({ api }: { api: AppApi }) {
       )}
       {!canScan && (
         <p className="small muted">
-          {adult ? (
-            <>
-              {t('fridge.needKey')} <a href="#/me/settings">{t('fridge.addKey')}</a>
-            </>
-          ) : (
-            t('fridge.under18')
-          )}
+          {adult ? t('fridge.unavailable') : t('fridge.under18')}
         </p>
       )}
 
@@ -109,7 +98,7 @@ export function Fridge({ api }: { api: AppApi }) {
         <h2>{t('fridge.samples')}</h2>
         <div className="sample-grid">
           {DEMO_FRIDGES.map((d) => (
-            <button key={d.id} className="sample" onClick={() => useSample(d)}>
+            <button key={d.id} className="sample" onClick={() => pickSample(d)}>
               <FridgeArt items={d.actual} title={t(`sample.${d.id}` as Key)} />
               {t(`sample.${d.id}` as Key)}
             </button>

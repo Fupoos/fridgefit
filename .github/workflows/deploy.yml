@@ -30,6 +30,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          # Address of the scan server (worker/); set as a repository variable after deploying it.
+          VITE_SCAN_URL: ${{ vars.SCAN_URL }}
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

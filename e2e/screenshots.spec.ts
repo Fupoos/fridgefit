@@ -39,7 +39,7 @@ function seeded(extra: Record<string, unknown> = {}) {
     scans: [{ id: 'demo-cut', date: '2026-10-18', source: 'demo', sampleId: cut.id, predicted: cut.predicted, confirmed: cut.actual }],
     draft: null,
     logs,
-    settings: { model: 'claude-opus-5-5', lang: 'en' },
+    settings: { lang: 'en' },
     ...extra,
   }
 }
@@ -157,7 +157,7 @@ test('safety: unhealthy target is refused', async ({ page }) => {
 })
 
 test.describe('Chinese', () => {
-  const zh = (extra: Record<string, unknown> = {}) => seeded({ settings: { model: 'claude-opus-5-5', lang: 'zh' }, ...extra })
+  const zh = (extra: Record<string, unknown> = {}) => seeded({ settings: { lang: 'zh' }, ...extra })
 
   test('fridge (zh)', async ({ page }) => {
     await withState(page, zh())

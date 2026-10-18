@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STATE_KEY, clearAll, defaultState, exportJSON, loadKey, loadState, saveKey, saveState } from './storage'
+import { STATE_KEY, clearAll, defaultState, forgetApiKeys, loadState, saveState } from './storage'
 
 class MemoryStorage implements Storage {
   private m = new Map<string, string>()
@@ -43,27 +43,11 @@ describe('storage', () => {
     expect(loadState(s)).toEqual(defaultState())
   })
 
-  it('keeps the API key out of exports', () => {
+  it('clearAll removes everything FridgeFit stored', () => {
     const local = new MemoryStorage()
     const session = new MemoryStorage()
     saveState(defaultState(), local)
-    saveKey('secret-key', true, local, session)
-    expect(exportJSON(local)).not.toContain('secret-key')
-  })
-
-  it('stores a session-only key in session storage', () => {
-    const local = new MemoryStorage()
-    const session = new MemoryStorage()
-    saveKey('k1', false, local, session)
-    expect(loadKey(local, session)).toEqual({ key: 'k1', remember: false })
-    expect(local.length).toBe(0)
-  })
-
-  it('clearAll removes the state and the key', () => {
-    const local = new MemoryStorage()
-    const session = new MemoryStorage()
-    saveState(defaultState(), local)
-    saveKey('k', true, local, session)
+    session.setItem('fridgefit:v1:other', 'x')
     clearAll(local, session)
     expect(local.length).toBe(0)
     expect(session.length).toBe(0)
@@ -71,19 +55,35 @@ describe('storage', () => {
 })
 
 describe('settings migration', () => {
-  it('defaults to Claude Opus 5.5 and no fixed language', () => {
-    expect(defaultState().settings).toEqual({ model: 'claude-opus-5-5', lang: null })
+  it('defaults to no fixed language', () => {
+    expect(defaultState().settings).toEqual({ lang: null })
   })
 
-  it('replaces a model name saved by the old Gemini version', () => {
+  it('drops the model name older versions saved', () => {
     const s = new MemoryStorage()
-    s.setItem(STATE_KEY, JSON.stringify({ ...defaultState(), settings: { model: 'gemini-3.8-flash' } }))
-    expect(loadState(s).settings).toEqual({ model: 'claude-opus-5-5', lang: null })
+    s.setItem(STATE_KEY, JSON.stringify({ ...defaultState(), settings: { model: 'gemini-3.8-flash', lang: 'en' } }))
+    expect(loadState(s).settings).toEqual({ lang: 'en' })
   })
 
   it('keeps a saved language choice', () => {
     const s = new MemoryStorage()
-    saveState({ ...defaultState(), settings: { model: 'claude-opus-5-5', lang: 'zh' } }, s)
+    saveState({ ...defaultState(), settings: { lang: 'zh' } }, s)
     expect(loadState(s).settings.lang).toBe('zh')
+  })
+})
+
+describe('forgetApiKeys', () => {
+  it('removes API keys saved by older versions from both storages, and nothing else', () => {
+    const local = new MemoryStorage()
+    const session = new MemoryStorage()
+    saveState(defaultState(), local)
+    local.setItem('fridgefit:v1:claude-key', 'old-key-a')
+    local.setItem('fridgefit:v1:gemini-key', 'old-key-b')
+    session.setItem('fridgefit:v1:claude-key', 'old-key-c')
+    forgetApiKeys(local, session)
+    expect(local.getItem('fridgefit:v1:claude-key')).toBeNull()
+    expect(local.getItem('fridgefit:v1:gemini-key')).toBeNull()
+    expect(session.length).toBe(0)
+    expect(local.getItem(STATE_KEY)).not.toBeNull()
   })
 })

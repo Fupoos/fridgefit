@@ -28,3 +28,8 @@ dist-ssr
 test-results/
 playwright-report/
 docs/screenshots/full/
+
+# Cloudflare Worker: local secrets and build cache
+.dev.vars*
+.wrangler/
+worker/worker-configuration.d.ts

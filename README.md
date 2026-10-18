@@ -6,7 +6,7 @@ and a prediction of whether next week's weigh-in is on track.**
 FridgeFit is a student prototype for UQ COMU1130 *Data & Society*, Assessment 3: "Your Data-Driven Smart Solution".
 It is built for university students who train at the gym and want to lose fat, maintain or build muscle on a student budget.
 
-**Live demo:** https://fupoos.github.io/fridgefit/. It works on a phone. Sample fridges run offline, with no account and no key.
+**Live demo:** https://fupoos.github.io/fridgefit/. It works on a phone, with no account and no key. Sample fridges work offline.
 
 | Scan | Check | Plan | Shop | Predict |
 |---|---|---|---|---|
@@ -36,37 +36,51 @@ The calories, macros, meal plan and shopping list are **not** produced by AI. Th
 - **Refused cut plans.** Cuts are refused for under-18s, for a current BMI under 18.5, and for a target BMI under 18.5. Refusals show supportive wording and the Butterfly Foundation helpline.
 - **No streaks, scores or shaming copy.**
 - **Data stays on the device.** Everything is stored in the browser (`localStorage`). There is an export button and a delete-all button. The "data donation" switch is a prototype of the opt-in flow and sends nothing.
-- **Your own Claude key, optional.** The key stays in your browser, either remembered or for the session only. Only the photo is sent; it is shrunk and re-encoded to JPEG, which removes GPS/EXIF data. Body measurements are never sent.
-- **What Anthropic does with the photo.** By default Anthropic does not train on API inputs and deletes them within 30 days; data is stored in the US. Calling the API from the browser exposes the key to anyone with access to that browser, which is why each user brings their own key (see the deck's critical evaluation).
+- **The API key never reaches the browser.** Photos go to a small scan server (`worker/`, a Cloudflare Worker) that holds the key and calls Claude. It only accepts fridge-recognition requests from the app's own origin, fixes the model and prompt on the server, and caps paid calls per minute and per day. It does not store or log photos.
+- **Only the photo is sent.** It is shrunk and re-encoded to JPEG, which removes GPS/EXIF data. Body measurements are never sent.
+- **What Anthropic does with the photo.** By default Anthropic does not train on API inputs and deletes them within 30 days; data is stored in the US. A zero-data-retention agreement would be the next step before a real launch.
 
 ## Run it
 
 ```bash
 npm install
 npm run dev          # http://localhost:5173/fridgefit/
-npm test             # 110 unit tests (Vitest)
+npm test             # unit tests for the app and the scan server (Vitest)
 npm run build
 npm run screens      # Playwright screenshots → docs/screenshots (uses installed Chrome)
 node scripts/build-data.mjs   # regenerate src/data from the research files
 ```
 
-To scan your own fridge, create a Claude API key in the [Claude Console](https://platform.claude.com/settings/keys) and paste it under
-**Me → Settings**.
+Photo scanning needs the scan server. Without it (`VITE_SCAN_URL` unset), the app says scanning is unavailable and
+sample fridges still work. Photo scanning is turned off for under-18s, because Anthropic requires extra safeguards such
+as age checks for products used by minors.
 
-**Claude Max subscribers** get monthly API credit ($100 on Max 5x, $200 on Max 20x): on claude.ai go to
-**Settings → Billing → API credits** and link a Console organization, then create the key there. One scan with
-Opus 5.5 at low effort costs roughly US$0.03. Photo scanning is turned off for under-18s, because Anthropic requires
-extra safeguards such as age checks for products used by minors.
+## Scan server (`worker/`)
+
+The Anthropic key lives only in the Worker's secrets, never in this repository or the web app.
+
+1. `cd worker && npm install`, then `npx wrangler login` to sign in to your Cloudflare account.
+2. `npx wrangler deploy`, and note the `https://fridgefit-scan.<your-subdomain>.workers.dev` address it prints.
+3. In the Cloudflare dashboard, open the Worker → **Settings → Variables and Secrets** and add a **Secret** named
+   `ANTHROPIC_API_KEY` with a key from the [Claude Console](https://platform.claude.com/settings/keys).
+4. Point the app at it: `gh variable set SCAN_URL --body "https://fridgefit-scan.<your-subdomain>.workers.dev/scan"`,
+   then re-run the Pages workflow.
+
+Limits are set in `worker/wrangler.jsonc`: `DAILY_SCAN_LIMIT` paid calls per UTC day (default 60; a retry counts) and 30
+requests a minute. One call uses at most 5,000 output tokens, so 60 calls cost at most about US$7 a day at Opus 5.5
+prices ($4 / $20 per million input / output tokens); a typical scan costs a few cents. Claude Max subscribers can fund
+this with their monthly API credit (claude.ai → **Settings → Billing → API credits**).
 
 ## Project layout
 
 ```
-src/lib/      nutrition, safety, planner, shopping, claude, image, storage (all unit-tested)
+src/lib/      nutrition, safety, planner, shopping, recognition, scan, image, storage (all unit-tested)
 src/i18n.ts   English / 中文 dictionaries (switch in the top bar or Settings)
 src/model/    synthetic data, softmax regression, feature extraction
 src/data/     generated food table + Queensland catalogue, demo fridges
 src/pages/    Welcome, Profile, Fridge, Confirm, Plan, Shop, Predict, Log, Settings
 e2e/          Playwright screenshot run
+worker/       scan server: Cloudflare Worker that calls Claude with the server-side key
 ```
 
 Data sources: [DATA_SOURCES.md](DATA_SOURCES.md). Not medical advice.

@@ -1,13 +1,12 @@
 import type { FridgeScan, Profile, WeeklyLog } from '../types'
-import { DEFAULT_MODEL } from './claude'
 
 /**
  * Everything FridgeFit knows lives in this browser's storage. Nothing is
  * uploaded; the "data donation" switch is a prototype of the opt-in flow.
  */
 export const STATE_KEY = 'fridgefit:v1:state'
-// Renamed from 'gemini-key' so an old Gemini key is never sent to Anthropic (clearAll still removes it).
-export const API_KEY_KEY = 'fridgefit:v1:claude-key'
+/** Where older versions kept a user's own API key. Scanning now goes through our server, so these are removed on start. */
+const OLD_API_KEY_KEYS = ['fridgefit:v1:claude-key', 'fridgefit:v1:gemini-key']
 const VERSION = 1
 
 export interface AppState {
@@ -19,11 +18,11 @@ export interface AppState {
   draft: FridgeScan | null
   logs: WeeklyLog[]
   /** lang null = follow the browser language. */
-  settings: { model: string; lang: 'en' | 'zh' | null }
+  settings: { lang: 'en' | 'zh' | null }
 }
 
 export function defaultState(): AppState {
-  return { version: VERSION, consent: null, profile: null, scans: [], draft: null, logs: [], settings: { model: DEFAULT_MODEL, lang: null } }
+  return { version: VERSION, consent: null, profile: null, scans: [], draft: null, logs: [], settings: { lang: null } }
 }
 
 function safeLocal(): Storage | null {
@@ -49,10 +48,9 @@ export function loadState(local: Storage | null = safeLocal()): AppState {
     const parsed = JSON.parse(raw) as Partial<AppState>
     if (parsed.version !== VERSION) return defaultState()
     const state = { ...defaultState(), ...parsed } as AppState
-    // Older builds used Gemini; its model names do not exist on the Claude API.
-    const model = typeof state.settings?.model === 'string' && state.settings.model.startsWith('claude') ? state.settings.model : DEFAULT_MODEL
+    // Rebuilt rather than spread, so settings older versions saved (such as a model name) are dropped.
     const lang = state.settings?.lang === 'en' || state.settings?.lang === 'zh' ? state.settings.lang : null
-    return { ...state, settings: { model, lang } }
+    return { ...state, settings: { lang } }
   } catch {
     return defaultState()
   }
@@ -66,35 +64,17 @@ export function saveState(state: AppState, local: Storage | null = safeLocal()):
   }
 }
 
-export function loadKey(local: Storage | null = safeLocal(), session: Storage | null = safeSession()): { key: string; remember: boolean } {
-  try {
-    const s = session?.getItem(API_KEY_KEY)
-    if (s) return { key: s, remember: false }
-    const l = local?.getItem(API_KEY_KEY)
-    if (l) return { key: l, remember: true }
-  } catch {
-    /* fall through */
-  }
-  return { key: '', remember: false }
-}
-
-export function saveKey(
-  key: string,
-  remember: boolean,
-  local: Storage | null = safeLocal(),
-  session: Storage | null = safeSession(),
-): void {
-  try {
-    local?.removeItem(API_KEY_KEY)
-    session?.removeItem(API_KEY_KEY)
-    if (!key.trim()) return
-    ;(remember ? local : session)?.setItem(API_KEY_KEY, key.trim())
-  } catch {
-    /* ignore */
+export function forgetApiKeys(local: Storage | null = safeLocal(), session: Storage | null = safeSession()): void {
+  for (const store of [local, session]) {
+    try {
+      for (const k of OLD_API_KEY_KEYS) store?.removeItem(k)
+    } catch {
+      /* ignore */
+    }
   }
 }
 
-/** The user's data as JSON — deliberately excludes the API key. */
+/** The user's data as JSON. */
 export function exportJSON(local: Storage | null = safeLocal()): string {
   return JSON.stringify(loadState(local), null, 2)
 }
