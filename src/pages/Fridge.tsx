@@ -17,6 +17,7 @@ export function Fridge({ api }: { api: AppApi }) {
   const { t, lang, locale } = useI18n()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [errorDetail, setErrorDetail] = useState<string | null>(null)
   const key = loadKey().key
   const adult = (api.state.profile?.age ?? 0) >= 18
   const canScan = Boolean(key) && adult
@@ -37,6 +38,7 @@ export function Fridge({ api }: { api: AppApi }) {
   const onPhoto = async (file: File | undefined) => {
     if (!file) return
     setError(null)
+    setErrorDetail(null)
     setBusy(t('fridge.busyShrink'))
     try {
       const img = await prepareImage(file)
@@ -49,7 +51,10 @@ export function Fridge({ api }: { api: AppApi }) {
       }))
       go('/fridge/confirm')
     } catch (e) {
-      if (e instanceof ClaudeError) setError(t(`err.${e.kind}` as Key))
+      if (e instanceof ClaudeError) {
+        setError(t(`err.${e.kind}` as Key))
+        setErrorDetail(e.detail ?? null)
+      }
       else if (e instanceof Error && e.message === UNREADABLE_PHOTO) setError(t('err.unreadable-photo'))
       else setError(t('err.network'))
     } finally {
@@ -84,6 +89,7 @@ export function Fridge({ api }: { api: AppApi }) {
       {error && (
         <div className="notice care" role="alert">
           <p>{error}</p>
+          {errorDetail && <p className="small muted">{errorDetail}</p>}
           <p className="small">{t('err.tryDemo')}</p>
         </div>
       )}

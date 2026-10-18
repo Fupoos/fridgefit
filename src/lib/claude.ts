@@ -11,10 +11,13 @@ export type ClaudeErrorKind = 'no-key' | 'auth' | 'credits' | 'quota' | 'model' 
 
 export class ClaudeError extends Error {
   kind: ClaudeErrorKind
-  constructor(kind: ClaudeErrorKind, message: string) {
+  /** The API's own error text, shown small under the friendly message to help diagnose failures. */
+  detail?: string
+  constructor(kind: ClaudeErrorKind, message: string, detail?: string) {
     super(message)
     this.name = 'ClaudeError'
     this.kind = kind
+    this.detail = detail
   }
 }
 
@@ -107,18 +110,19 @@ function client(cfg: ClaudeConfig): Anthropic {
 /** Turns SDK errors into the app's error kinds (most specific first). */
 function toClaudeError(e: unknown): ClaudeError {
   if (e instanceof ClaudeError) return e
+  const detail = e instanceof Error ? e.message : undefined
   if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {
-    return new ClaudeError('auth', 'Claude rejected the API key.')
+    return new ClaudeError('auth', 'Claude rejected the API key.', detail)
   }
-  if (e instanceof Anthropic.RateLimitError) return new ClaudeError('quota', 'Too many requests. Wait a minute and try again.')
-  if (e instanceof Anthropic.NotFoundError) return new ClaudeError('model', 'That model name was not found. Check it in Settings.')
+  if (e instanceof Anthropic.RateLimitError) return new ClaudeError('quota', 'Too many requests. Wait a minute and try again.', detail)
+  if (e instanceof Anthropic.NotFoundError) return new ClaudeError('model', 'That model name was not found. Check it in Settings.', detail)
   if (e instanceof Anthropic.BadRequestError) {
-    if (/credit balance/i.test(e.message)) return new ClaudeError('credits', 'Your API credit has run out.')
-    return new ClaudeError('model', `Claude rejected the request: ${e.message}`)
+    if (/credit balance/i.test(e.message)) return new ClaudeError('credits', 'Your API credit has run out.', detail)
+    return new ClaudeError('model', 'Claude rejected the request.', detail)
   }
-  if (e instanceof Anthropic.APIConnectionError) return new ClaudeError('network', 'Could not reach Claude. Check your connection.')
-  if (e instanceof Anthropic.APIError) return new ClaudeError('model', `Claude error ${e.status ?? ''}: ${e.message}`)
-  return new ClaudeError('network', e instanceof Error ? e.message : 'Unknown error')
+  if (e instanceof Anthropic.APIConnectionError) return new ClaudeError('network', 'Could not reach Claude. Check your connection.', detail)
+  if (e instanceof Anthropic.APIError) return new ClaudeError('model', `Claude error ${e.status ?? ''}`, detail)
+  return new ClaudeError('network', 'Unknown error', detail)
 }
 
 async function recognizeOnce(api: Anthropic, b64: string, mediaType: ImageMediaType, foodIds: string[], model: string): Promise<FridgeItem[]> {

@@ -126,6 +126,13 @@ describe('recognizeFridge', () => {
     await expect(recognizeFridge('AAAA', 'image/jpeg', IDS, cfg(fakeFetch([resp]).impl))).rejects.toMatchObject({ kind })
   })
 
+  it('keeps the API message as detail so a failure can be diagnosed', async () => {
+    const resp = apiError(400, 'invalid_request_error', 'output_config.format.schema: unsupported keyword')
+    const err = await recognizeFridge('AAAA', 'image/jpeg', IDS, cfg(fakeFetch([resp]).impl)).catch((e) => e)
+    expect(err.kind).toBe('model')
+    expect(err.detail).toContain('unsupported keyword')
+  })
+
   it('maps a network failure to a network error', async () => {
     const f = fakeFetch([new TypeError('Failed to fetch'), new TypeError('Failed to fetch')])
     await expect(recognizeFridge('AAAA', 'image/jpeg', IDS, cfg(f.impl))).rejects.toMatchObject({ kind: 'network' })

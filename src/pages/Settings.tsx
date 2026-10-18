@@ -30,7 +30,7 @@ export function Settings({ api }: { api: AppApi }) {
       await testKey({ apiKey: key, model: model.trim() || DEFAULT_MODEL })
       setStatus(t('settings.works'))
     } catch (e) {
-      setStatus(e instanceof ClaudeError ? t(`err.${e.kind}` as Key) : t('err.network'))
+      setStatus(e instanceof ClaudeError ? `${t(`err.${e.kind}` as Key)}${e.detail ? ` (${e.detail})` : ''}` : t('err.network'))
     }
   }
 
