@@ -1,3 +1,4 @@
+import { isProteinSource } from '../lib/diet'
 import type { FoodMap } from '../lib/planner'
 import type { FridgeItem, WeeklyLog } from '../types'
 import type { Feature } from './synthetic'
@@ -21,9 +22,7 @@ export function featuresFrom(items: FridgeItem[], log: WeeklyLog | null, foods: 
   for (const it of items) {
     const f = foods.get(it.foodId)
     if (!f) continue
-    if (f.category === 'protein' || (f.category === 'dairy' && f.per100g.protein / Math.max(1, f.per100g.kcal) >= 0.05)) {
-      proteinItems++
-    }
+    if (isProteinSource(f)) proteinItems++
     if (f.category === 'produce') produceItems++
     if (f.ultraProcessed) upfItems++
   }

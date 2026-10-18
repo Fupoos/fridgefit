@@ -121,7 +121,7 @@ export function Predict({ api }: { api: AppApi }) {
           </li>
         </ol>
         <div className="table-scroll">
-          <table className="data">
+          <table className="data wide">
             <thead>
               <tr>
                 {ABBR.map((a, j) => (

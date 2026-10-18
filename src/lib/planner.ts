@@ -1,5 +1,5 @@
 import type { Food, FridgeItem, Gap, Macros, Meal, Plan, PlanLine, Profile, Targets } from '../types'
-import { allowedFood } from './diet'
+import { allowedFood, isProteinSource } from './diet'
 
 export type FoodMap = Map<string, Food>
 type MealName = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'
@@ -171,7 +171,7 @@ export function planLocal(
   const proteinDensity = (s: Stock) => s.food.per100g.protein / Math.max(1, s.food.per100g.kcal)
 
   const proteinFoods = byPriority(
-    all.filter((s) => s.food.category === 'protein' || (s.food.category === 'dairy' && proteinDensity(s) >= 0.05)),
+    all.filter((s) => isProteinSource(s.food)),
     proteinDensity,
   )
   fill(proteinFoods, () => totals.protein >= targets.proteinG * 0.95, 'protein', 2)
@@ -194,7 +194,7 @@ export function planLocal(
   )
   fill(
     byPriority(
-      all.filter((s) => s.food.category === 'fat'),
+      all.filter((s) => s.food.category === 'fat' || (s.food.category === 'dairy' && !isProteinSource(s.food))),
       () => 0,
     ),
     short,

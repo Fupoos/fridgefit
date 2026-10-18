@@ -84,6 +84,17 @@ describe('planShopping', () => {
     expect(list.lines.find((l) => l.product.id === 'lentils-400g')).toBeDefined()
   })
 
+  it('buys one product per food (the best value), not every brand', () => {
+    const list = run([], { weeklyBudgetAud: 300 })
+    const foods = list.lines.map((l) => l.product.foodId)
+    expect(new Set(foods).size).toBe(foods.length)
+  })
+
+  it('does not count low-protein drinks such as milk as protein sources', () => {
+    const list = run([], { weeklyBudgetAud: 300 })
+    expect(list.lines.filter((l) => l.reason === 'protein').map((l) => l.product.foodId)).not.toContain('milk')
+  })
+
   it('reports what is still missing when the budget runs out', () => {
     const list = run([], { weeklyBudgetAud: 10 })
     expect(list.unmet.some((g) => g.nutrient === 'protein')).toBe(true)

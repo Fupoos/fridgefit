@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { FOOD_MAP } from '../data/foods'
-import { PRICES_CHECKED_ON, PRICE_NOTE, QLD_CATALOG, SEASONAL_SEQ } from '../data/qldGrocery'
+import { PRICES_CHECKED_ON, QLD_CATALOG, SEASONAL_SEQ } from '../data/qldGrocery'
 import { planShopping } from '../lib/shopping'
 import type { AppApi } from '../state'
 import type { Store } from '../types'
@@ -125,7 +125,8 @@ export function Shop({ api }: { api: AppApi }) {
       </section>
 
       <p className="small muted">
-        Prices checked online on {checked}. {PRICE_NOTE}
+        Online shelf prices from Woolworths, Coles and ALDI Australia, checked on {checked} without choosing a store. Prices at your local store
+        and weekly specials will differ. Canned foods are counted at drained weight.
       </p>
     </>
   )

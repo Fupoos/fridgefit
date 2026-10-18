@@ -1,10 +1,12 @@
 import type { Food, FridgeItem, Gap, GroceryProduct, Profile, ShoppingLine, ShoppingList, Targets } from '../types'
-import { allowedFood } from './diet'
+import { allowedFood, isProteinSource } from './diet'
 import type { FoodMap } from './planner'
 
 const PRODUCE_PER_DAY_G = 400
-/** At most two portions a day of any one food across the week's shop. */
+/** Soon-to-expire fridge items count for at most this many portions a day before they spoil. */
 const MAX_PORTIONS_PER_DAY = 2
+/** First pass buys up to ~1 portion a day of each food (variety); a second pass allows 2 (volume). */
+const PASSES = [1, 2]
 
 type Amounts = { protein: number; produceG: number; kcal: number }
 
@@ -15,9 +17,6 @@ function amountsOf(food: Food, grams: number): Amounts {
     kcal: (food.per100g.kcal * grams) / 100,
   }
 }
-
-const isProteinSource = (f: Food) =>
-  f.category === 'protein' || (f.category === 'dairy' && f.per100g.protein / Math.max(1, f.per100g.kcal) >= 0.05)
 
 /**
  * Builds a week's shopping list from a Queensland supermarket catalogue:
@@ -68,38 +67,44 @@ export function planShopping(
     key: keyof Amounts,
     valuePerDollar: (p: GroceryProduct & { priceAUD: number }, f: Food) => number,
   ) => {
-    const cands = priced
-      .filter((p) => pick(foods.get(p.foodId)!))
-      .map((p) => ({ p, f: foods.get(p.foodId)!, v: valuePerDollar(p, foods.get(p.foodId)!) }))
-      .sort((a, b) => b.v - a.v || a.p.id.localeCompare(b.p.id))
+    // Best-value product for each food, then foods in order of value.
+    const best = new Map<string, { p: GroceryProduct & { priceAUD: number }; f: Food; v: number }>()
+    for (const p of priced) {
+      const f = foods.get(p.foodId)!
+      if (!pick(f)) continue
+      const v = valuePerDollar(p, f)
+      const cur = best.get(f.id)
+      if (!cur || v > cur.v || (v === cur.v && p.id < cur.p.id)) best.set(f.id, { p, f, v })
+    }
+    const cands = [...best.values()].sort((a, b) => b.v - a.v || a.p.id.localeCompare(b.p.id))
 
-    let added1 = true
-    while (gapLeft(key) > 0 && added1) {
-      added1 = false
+    for (const perDay of PASSES) {
       for (const { p, f } of cands) {
-        if (gapLeft(key) <= 0) break
-        if (total + p.priceAUD > budget + 1e-9) continue
-        const cap = f.portionG * MAX_PORTIONS_PER_DAY * days
-        if ((usedGrams.get(f.id) ?? 0) + p.packGrams > cap) continue
+        const cap = f.portionG * perDay * days
+        while (gapLeft(key) > 0) {
+          const used = usedGrams.get(f.id) ?? 0
+          // The first pack of a food is always allowed, even if one pack is more than the weekly cap (e.g. a 2 kg bag of rice).
+          if (used > 0 && used + p.packGrams > cap) break
+          if (total + p.priceAUD > budget + 1e-9) break
 
-        const line = lines.get(p.id) ?? { product: p, packs: 0, cost: 0, reason }
-        line.packs += 1
-        line.cost = Math.round(line.packs * p.priceAUD * 100) / 100
-        lines.set(p.id, line)
-        total += p.priceAUD
-        usedGrams.set(f.id, (usedGrams.get(f.id) ?? 0) + p.packGrams)
-        const a = amountsOf(f, p.packGrams)
-        added.protein += a.protein
-        added.produceG += a.produceG
-        added.kcal += a.kcal
-        added1 = true
+          const line = lines.get(p.id) ?? { product: p, packs: 0, cost: 0, reason }
+          line.packs += 1
+          line.cost = Math.round(line.packs * p.priceAUD * 100) / 100
+          lines.set(p.id, line)
+          total += p.priceAUD
+          usedGrams.set(f.id, used + p.packGrams)
+          const a = amountsOf(f, p.packGrams)
+          added.protein += a.protein
+          added.produceG += a.produceG
+          added.kcal += a.kcal
+        }
       }
     }
   }
 
   fill('protein', isProteinSource, 'protein', (p, f) => (f.per100g.protein * p.packGrams) / 100 / p.priceAUD)
   fill('produce', (f) => f.category === 'produce', 'produceG', (p) => p.packGrams / p.priceAUD)
-  fill('energy', (f) => f.category === 'carb' || f.category === 'fat', 'kcal', (p, f) => (f.per100g.kcal * p.packGrams) / 100 / p.priceAUD)
+  fill('energy', (f) => f.category === 'carb' || f.category === 'fat' || (f.category === 'dairy' && !isProteinSource(f)), 'kcal', (p, f) => (f.per100g.kcal * p.packGrams) / 100 / p.priceAUD)
 
   const unmet: Gap[] = []
   if (gapLeft('protein') > need.protein * 0.05) {

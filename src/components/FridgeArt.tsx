@@ -41,10 +41,12 @@ const C = {
   warm: '#efe6d2',
 }
 
+const K = 1.22
+
 function glyph(kind: Glyph, key: string, x: number, base: number): ReactElement {
   const s = { stroke: C.line, strokeWidth: 1.6, strokeLinejoin: 'round' as const }
   const g = (children: ReactElement | ReactElement[]) => (
-    <g key={key} transform={`translate(${x} ${base})`}>
+    <g key={key} transform={`translate(${x} ${base}) scale(${K})`}>
       {children}
     </g>
   )
@@ -108,32 +110,32 @@ function glyph(kind: Glyph, key: string, x: number, base: number): ReactElement 
   }
 }
 
-const SHELF_Y = [96, 176, 252, 330]
+const SHELF_Y = [90, 166, 240, 306]
 
 export function FridgeArt({ items, title }: { items: FridgeItem[]; title: string }) {
-  const cursors = [16, 16, 16, 20]
+  const cursors = [16, 16, 16, 22]
   const drawn: ReactElement[] = []
   items.forEach((it, idx) => {
     const kind: Glyph = it.foodId === 'other' ? 'takeaway' : (GLYPH[it.foodId] ?? 'box')
     const shelf = SHELF_OF[kind]
-    const w = WIDTH[kind]
+    const w = WIDTH[kind] * K
     if (cursors[shelf] + w > 284) return
     drawn.push(glyph(kind, `${idx}`, cursors[shelf], SHELF_Y[shelf]))
-    cursors[shelf] += w + 8
+    cursors[shelf] += w + 9
   })
 
   return (
-    <svg viewBox="0 0 300 350" role="img" aria-label={title} style={{ width: '100%', height: 'auto', display: 'block' }}>
+    <svg viewBox="0 0 300 324" role="img" aria-label={title} style={{ width: '100%', height: 'auto', display: 'block' }}>
       <title>{title}</title>
-      <rect x={4} y={4} width={292} height={342} rx={18} fill="#f7fbf9" stroke="#b5c4bd" strokeWidth={2} />
+      <rect x={4} y={4} width={292} height={316} rx={18} fill="#f7fbf9" stroke="#b5c4bd" strokeWidth={2} />
       <rect x={4} y={4} width={292} height={16} rx={8} fill="#e6eeea" />
       {SHELF_Y.slice(0, 3).map((y) => (
         <rect key={y} x={10} y={y} width={280} height={5} rx={2} fill="#d3ddd8" />
       ))}
-      <rect x={12} y={262} width={276} height={76} rx={8} fill="#eef5f1" stroke="#b5c4bd" strokeWidth={1.5} />
+      <rect x={12} y={250} width={276} height={62} rx={8} fill="#eef5f1" stroke="#b5c4bd" strokeWidth={1.5} />
       {drawn}
-      <rect x={12} y={300} width={276} height={38} rx={6} fill="#ffffff" fillOpacity={0.55} stroke="#b5c4bd" strokeWidth={1.5} />
-      <rect x={130} y={312} width={40} height={6} rx={3} fill="#b5c4bd" />
+      <rect x={12} y={290} width={276} height={22} rx={6} fill="#ffffff" fillOpacity={0.6} stroke="#b5c4bd" strokeWidth={1.5} />
+      <rect x={130} y={298} width={40} height={5} rx={2.5} fill="#b5c4bd" />
     </svg>
   )
 }

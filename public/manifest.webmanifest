@@ -1,0 +1,11 @@
+{
+  "name": "FridgeFit",
+  "short_name": "FridgeFit",
+  "description": "Fridge photo to meal plan, Queensland shopping list and weigh-in prediction for student gym-goers.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f6f4",
+  "theme_color": "#2c6a4d",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

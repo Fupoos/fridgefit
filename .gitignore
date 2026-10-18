@@ -27,3 +27,4 @@ dist-ssr
 .env*
 test-results/
 playwright-report/
+docs/screenshots/full/

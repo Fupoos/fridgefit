@@ -17,6 +17,7 @@ export const TEST_FOODS: Food[] = [
   { id: 'beer', name: 'Beer', category: 'drink', ultraProcessed: false, portionG: 375, per100g: { kcal: 43, protein: 0.5, fat: 0, carbs: 3.6 }, tags: ['alcohol', 'gluten'], fdcId: 13 },
   { id: 'tuna_can', name: 'Tuna (canned)', category: 'protein', ultraProcessed: false, portionG: 95, per100g: { kcal: 116, protein: 25.5, fat: 0.8, carbs: 0 }, tags: ['seafood'], fdcId: 14 },
   { id: 'lentils_can', name: 'Lentils (canned)', category: 'protein', ultraProcessed: false, portionG: 130, per100g: { kcal: 116, protein: 9, fat: 0.4, carbs: 20 }, tags: [], fdcId: 15 },
+  { id: 'milk', name: 'Milk', category: 'dairy', ultraProcessed: false, portionG: 250, per100g: { kcal: 60, protein: 3.3, fat: 3.2, carbs: 4.6 }, tags: ['dairy'], fdcId: 17 },
   { id: 'frozen_veg', name: 'Frozen mixed veg', category: 'produce', ultraProcessed: false, portionG: 150, per100g: { kcal: 64, protein: 2.9, fat: 0.5, carbs: 13 }, tags: [], fdcId: 16 },
 ]
 
@@ -51,5 +52,6 @@ export const TEST_CATALOG: GroceryProduct[] = [
   p('rice-1kg', 'rice', 'ALDI', 1000, 2),
   p('oats-1kg', 'oats', 'Coles', 1000, 2.5),
   p('pb-375g', 'peanut_butter', 'ALDI', 375, 3),
+  p('milk-2l', 'milk', 'ALDI', 2000, 3.1),
   p('mystery-unpriced', 'chicken_breast', 'Coles', 1000, null),
 ]

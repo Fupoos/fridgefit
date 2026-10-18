@@ -805,3 +805,8 @@ table.data td:last-child {
   flex-direction: column;
   gap: 4px;
 }
+
+table.data.wide th,
+table.data.wide td {
+  white-space: nowrap;
+}
