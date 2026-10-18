@@ -140,6 +140,34 @@ test('check-in', async ({ page }) => {
   await shoot(page, '11-checkin')
 })
 
+test.describe('two-column forms fit narrow phones', () => {
+  for (const width of [320, 360, 390]) {
+    for (const lang of ['en', 'zh']) {
+      test(`check-in at ${width}px (${lang})`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 800 })
+        await withState(page, seeded({ settings: { lang } }))
+        await page.goto('./#/me/log')
+        const grid = page.locator('.grid-2').first()
+        const cells = await grid.locator(':scope > label.field').all()
+        const boxes = []
+        for (const cell of cells) {
+          const label = (await cell.boundingBox())!
+          const input = (await cell.locator('input').boundingBox())!
+          // Each input stays inside its own grid cell.
+          expect(input.x + input.width, `input overflows its column at ${width}px`).toBeLessThanOrEqual(label.x + label.width + 0.5)
+          boxes.push(label)
+        }
+        // Both columns get the same width.
+        expect(Math.abs(boxes[0].width - boxes[1].width)).toBeLessThan(1)
+        // Below 360px there is no room for a full date beside another field, so the form stacks.
+        if (width < 360) expect(boxes[1].y).toBeGreaterThan(boxes[0].y + boxes[0].height)
+        else expect(Math.abs(boxes[1].y - boxes[0].y)).toBeLessThan(1)
+        await page.screenshot({ path: `test-results/layout-checkin-${width}-${lang}.png` })
+      })
+    }
+  }
+})
+
 test('settings', async ({ page }) => {
   await withState(page, seeded())
   await page.goto('./#/me/settings')
